@@ -1,9 +1,9 @@
 {
-  "name": "sequelize-paper-trail",
-  "version": "1.2.3",
+  "name": "sequelize-paper-trail-scalio",
+  "version": "0.0.1",
   "description": "Track changes to your Sequelize models data. Perfect for auditing or versioning.",
   "bugs": {
-    "url": "https://github.com/nielsgl/sequelize-paper-trail/issues",
+    "url": "https://github.com/scalio/sequelize-paper-trail/issues",
     "email": "nvangalenlast@gmail.com"
   },
   "main": "lib/index.js",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/nielsgl/sequelize-paper-trail.git"
+    "url": "https://github.com/scalio/sequelize-paper-trail.git"
   },
   "private": false,
   "keywords": [

@@ -1,15 +1,11 @@
 'use strict';
-
-Object.defineProperty(exports, "__esModule", {
-  value: true
-});
 var Sequelize = require('sequelize');
 var diff = require('deep-diff').diff;
 var jsdiff = require('diff');
 var _ = require('lodash');
 var helpers = require('./helpers');
 
-exports.default = function (sequelize, options) {
+export default (sequelize: sequelize, options: object): object => {
   // console.log(message); // eslint-disable-line
   var defaultAttributes = {
     documentId: 'documentId',
@@ -17,12 +13,12 @@ exports.default = function (sequelize, options) {
   };
 
   // if no options are passed the function
-  if (!options) {
+  if(!options){
     options = {};
   }
   // enable debug logging
   var debug = false;
-  if (options.debug) {
+  if(options.debug) {
     debug = options.debug;
   }
 
@@ -38,37 +34,45 @@ exports.default = function (sequelize, options) {
   }
 
   // attribute name for revision number in the models
-  if (!options.revisionAttribute) {
+  if(!options.revisionAttribute){
     options.revisionAttribute = "revision";
   }
 
   // fields we want to exclude from audit trails
-  if (!options.exclude) {
-    options.exclude = ["id", "createdAt", "updatedAt", "deletedAt", // if the model is paranoid
-    "created_at", "updated_at", "deleted_at", options.revisionAttribute];
+  if(!options.exclude){
+    options.exclude = [
+      "id",
+      "createdAt",
+      "updatedAt",
+      "deletedAt", // if the model is paranoid
+      "created_at",
+      "updated_at",
+      "deleted_at",
+      options.revisionAttribute
+    ];
   }
 
   // model name for revision table
-  if (!options.revisionModel) {
+  if(!options.revisionModel){
     options.revisionModel = "Revision";
   }
 
   // model name for revision changes tables
-  if (!options.revisionChangeModel) {
+  if(!options.revisionChangeModel){
     options.revisionChangeModel = "RevisionChange";
   }
 
   // support UUID for postgresql
-  if (options.UUID === undefined) {
+  if(options.UUID === undefined){
     options.UUID = false;
   }
 
   // underscored created and updated attributes
-  if (!options.underscored) {
+  if(!options.underscored) {
     options.underscored = false;
   }
 
-  if (!options.underscoredAttributes) {
+  if(!options.underscoredAttributes) {
     options.underscoredAttributes = false;
     options.defaultAttributes = defaultAttributes;
   } else {
@@ -77,26 +81,26 @@ exports.default = function (sequelize, options) {
 
   // HACK to track the user that made the changes
   // TODO: needs to be implemented
-  if (!options.userModel) {
+  if(!options.userModel) {
     options.userModel = false;
   }
 
   // full revisions or compressed revisions (track only the difference in models)
   // default: full revisions
-  if (!options.enableCompression) {
+  if(!options.enableCompression) {
     options.enableCompression = false;
   }
 
   // add the column to the database if it doesn't exist
-  if (!options.enableMigration) {
+  if(!options.enableMigration) {
     options.enableMigration = false;
   }
-
+  
   // enable strict diff
   // when true: 10 !== '10'
   // when false: 10 == '10'
   // default: true
-  if (!options.enableStrictDiff) {
+  if(!options.enableStrictDiff) {
     options.enableStrictDiff = true;
   }
 
@@ -138,31 +142,32 @@ exports.default = function (sequelize, options) {
   // Extend model prototype with "enableAuditTrails" function
   // Call model.enableAuditTrails() to enable revisions for model
   _.extend(sequelize.Model.prototype, {
-    hasPaperTrail: function hasPaperTrail() {
-      if (debug) {
-        log('Enabling paper trail on', this.name);
-      }
+    hasPaperTrail: function () {
+      if(debug) { log('Enabling paper trail on', this.name); }
 
       this.attributes[options.revisionAttribute] = {
         type: Sequelize.INTEGER,
         defaultValue: 0
-      };
+      }
       this.revisionable = true;
       this.refreshAttributes();
 
-      if (options.enableMigration) {
-        var tableName = this.getTableName();
-        sequelize.getQueryInterface().describeTable(tableName).then(function (attributes) {
-          if (!attributes[options.revisionAttribute]) {
-            if (debug) {
-              log('adding revision attribute to the database');
-            }
-            sequelize.getQueryInterface().addColumn(tableName, options.revisionAttribute, {
-              type: Sequelize.INTEGER,
-              defaultValue: 0
-            }).then(function () {
+      if(options.enableMigration) {
+        var tableName: string = this.getTableName();
+        sequelize.getQueryInterface().describeTable(tableName)
+        .then(function(attributes: any) {
+          if(!attributes[options.revisionAttribute]) {
+            if(debug) { log('adding revision attribute to the database'); }
+            sequelize.getQueryInterface().addColumn(
+                tableName,
+                options.revisionAttribute,
+                {
+                  type: Sequelize.INTEGER,
+                  defaultValue: 0
+                }
+            ).then(() => {
               return null;
-            }).catch(function (err) {
+            }).catch((err: any) => {
               log('something went really wrong..');
               log(err);
               return null;
@@ -190,8 +195,8 @@ exports.default = function (sequelize, options) {
     }
   });
 
-  var beforeHook = function beforeHook(instance, opt) {
-    if (debug) {
+  var beforeHook = function(instance: object, opt: object) {
+    if(debug) {
       log('beforeHook called');
       log('instance:');
       log(instance);
@@ -199,11 +204,11 @@ exports.default = function (sequelize, options) {
       log(opt);
     }
 
-    if (options.enableCompression) {
+    if(options.enableCompression) {
       var previousVersion = {};
       var currentVersion = {};
 
-      _.forEach(opt.defaultFields, function (a) {
+      _.forEach(opt.defaultFields, (a: string) => {
         previousVersion[a] = instance._previousDataValues[a];
         currentVersion[a] = instance.dataValues[a];
       });
@@ -212,49 +217,46 @@ exports.default = function (sequelize, options) {
       var currentVersion = instance.dataValues;
     }
 
+
     // Disallow change of revision
     instance.set(options.revisionAttribute, instance._previousDataValues[options.revisionAttribute]);
 
     // Get diffs
     var delta = helpers.calcDelta(previousVersion, currentVersion, options.exclude, options.enableStrictDiff);
 
-    if (debug) {
+    if(debug) {
       log('delta:');
       log(delta);
     }
-    if (delta && delta.length > 0) {
+    if(delta && delta.length > 0){
       instance.set(options.revisionAttribute, (instance.get(options.revisionAttribute) || 0) + 1);
-      if (!instance.context) {
+      if(!instance.context){
         instance.context = {};
       }
       instance.context.delta = delta;
     }
-    if (debug) {
-      log('end of beforeHook');
-    }
+    if(debug) { log('end of beforeHook'); }
   };
 
-  var afterHook = function afterHook(instance, opt) {
-    if (debug) {
+  var afterHook = function(instance: object, opt: object) {
+    if(debug) {
       log('afterHook called');
       log('instance:', instance);
       log('opt:', opt);
     }
 
-    console.log("OPT:::::::::", opt);
-
     var ns = process.namespaces['current_user_request'];
 
-    if (instance.context && instance.context.delta && instance.context.delta.length > 0) {
+    if(instance.context && instance.context.delta && instance.context.delta.length > 0) {
       var Revision = sequelize.model(options.revisionModel);
       var RevisionChange = sequelize.model(options.revisionChangeModel);
       var delta = instance.context.delta;
 
-      if (options.enableCompression) {
+      if(options.enableCompression) {
         var previousVersion = {};
         var currentVersion = {};
 
-        _.forEach(opt.defaultFields, function (a) {
+        _.forEach(opt.defaultFields, (a: string) => {
           previousVersion[a] = instance._previousDataValues[a];
           currentVersion[a] = instance.dataValues[a];
         });
@@ -266,14 +268,14 @@ exports.default = function (sequelize, options) {
       // TODO: so we can also track who made the changes to the model
       if (false) {
         var user = opt.user;
-        if (!user && instance.context && instance.context.user) {
+        if(!user && instance.context && instance.context.user){
           user = instance.context.user;
         }
       }
 
       // Build revision
       var revision = Revision.build({
-        model: opt.model ? opt.model.name : "unknown",
+        model: opt.model.name,
         document_id: instance.get("id"),
         // TODO: Hacky, but necessary to get immutable current representation
         document: currentVersion,
@@ -282,9 +284,10 @@ exports.default = function (sequelize, options) {
       revision[options.revisionAttribute] = instance.get(options.revisionAttribute);
 
       // Save revision
-      return revision.save().then(function (revision) {
+      return revision.save()
+      .then(function(revision: any) {
         // Loop diffs and create a revision-diff for each
-        _.forEach(delta, function (difference) {
+        _.forEach(delta, function(difference: any) {
           var o = helpers.diffToString(difference.item ? difference.item.lhs : difference.lhs);
           var n = helpers.diffToString(difference.item ? difference.item.rhs : difference.rhs);
 
@@ -295,11 +298,13 @@ exports.default = function (sequelize, options) {
             diff: o || n ? jsdiff.diffChars(o, n) : []
           });
 
-          d.save().then(function (d) {
+          d.save()
+          .then(function(d: any){
             // Add diff to revision
             revision['add' + options.revisionChangeModel](d);
             return null;
-          }).catch(function (err) {
+          })
+          .catch((err: any) => {
             log('RevisionChange save error');
             log(err);
             throw err;
@@ -307,21 +312,20 @@ exports.default = function (sequelize, options) {
         });
 
         return null;
-      }).catch(function (err) {
+      })
+      .catch((err: object) => {
         log('Revision save error');
         log(err);
         throw err;
       });
     }
 
-    if (debug) {
-      log('end of afterHook');
-    }
+    if(debug) { log('end of afterHook'); }
   };
 
   return {
     // Return defineModels()
-    defineModels: function defineModels(db) {
+    defineModels: function(db: object) {
       var attributes = {
         model: {
           type: Sequelize.TEXT,
@@ -333,9 +337,9 @@ exports.default = function (sequelize, options) {
         }
       };
 
-      attributes[options.defaultAttributes.documentId] = {
+      attributes[options.defaultAttributes.documentId] =  {
         type: Sequelize.INTEGER,
-        allowNull: false
+        allowNull: false,
       };
 
       attributes[options.revisionAttribute] = {
@@ -343,11 +347,11 @@ exports.default = function (sequelize, options) {
         allowNull: false
       };
 
-      if (debug) {
+      if(debug) {
         log('attributes');
         log(attributes);
       }
-      if (options.UUID) {
+      if(options.UUID){
         attributes.id = {
           primaryKey: true,
           type: Sequelize.UUID,
@@ -358,13 +362,13 @@ exports.default = function (sequelize, options) {
       // Revision model
       var Revision = sequelize.define(options.revisionModel, attributes, {
         classMethods: {
-          associate: function associate(models) {
+          associate: function(models: any) {
             Revision.belongsTo(sequelize.model(options.userModel));
           }
         },
         underscored: options.underscored
       });
-
+    
       attributes = {
         path: {
           type: Sequelize.TEXT,
@@ -379,7 +383,7 @@ exports.default = function (sequelize, options) {
           allowNull: false
         }
       };
-      if (options.UUID) {
+      if(options.UUID){
         attributes.id = {
           primaryKey: true,
           type: Sequelize.UUID,
@@ -391,7 +395,7 @@ exports.default = function (sequelize, options) {
       var RevisionChange = sequelize.define(options.revisionChangeModel, attributes, {
         underscored: options.underscored
       });
-
+    
       // Set associations
       Revision.hasMany(RevisionChange, {
         foreignKey: options.defaultAttributes.revisionId,
@@ -413,11 +417,11 @@ exports.default = function (sequelize, options) {
       }
       return Revision;
     },
-    enableUserRevisions: function enableUserRevisions(db) {
+    enableUserRevisions: function(db: object) {
       console.log('hello user');
-      console.log(options);
+      console.log(options)
 
-      if (!db[options.revisionChangeModel].attributes['user_id']) {
+      if(!db[options.revisionChangeModel].attributes['user_id']) {
         console.log('adding user_id');
         // sequelize.getQueryInterface().addColumn(
         //     'Brokerages',
@@ -439,14 +443,13 @@ exports.default = function (sequelize, options) {
         });
       }
 
-      console.log(db[options.revisionChangeModel].attributes);
+
+      console.log(db[options.revisionChangeModel].attributes)
       // db[options.revisionChangeModel].belongsTo(db[options.userModel], {
       //   foreignKey: 'user_id',
       //   constraints: false
       // });
       // return db;
     }
-  };
+  }
 };
-
-module.exports = exports['default'];
